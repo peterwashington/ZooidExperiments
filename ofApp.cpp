@@ -442,6 +442,14 @@ void ofApp::sendPositions()
 //--------------------------------------------------------------
 void ofApp::assignGoalIndex(unsigned char mode) {
     
+    if(ofGetElapsedTimeMillis() % 10 < 1) {
+        simulator.flushGoals();
+        for (int k = 0; k < robotCollection.size(); k++) {
+            const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
+            simulator.addGoal(vec);
+        }
+    }
+    
     if (mode == 0) {
         for (int k = 0; k < robotCollection.size(); k++) {
             simulator.setAgentGoal(k, k);
