@@ -231,9 +231,18 @@ bool ofApp::runSimulation()
                     robotCollection[i].setPosition(simulator.getAgentPosition(robotCollection[i].getId()).getX() + robotCollection[i].getJitter() * randx,
                                                    simulator.getAgentPosition(robotCollection[i].getId()).getY() + robotCollection[i].getJitter() * randy);
                     robotCollection[i].setAngle(simulator.getAgentOrientation(robotCollection[i].getId()) * 180.0f / PI);
-					robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
+                    if (simulator.getAgentReachedGoal(robotCollection[i].getId())) {
+                        const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
+//                        robotCollection[i].setGoal(vec);
+                        simulator.setAgentGoal(i, vec);
+                    }
                 }
-				robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
+                if (simulator.getAgentReachedGoal(robotCollection[i].getId())) {
+                    const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
+                    //                        robotCollection[i].setGoal(vec);
+                    simulator.setAgentGoal(i, vec);
+                }
+//				robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
 
 
             }
@@ -441,14 +450,6 @@ void ofApp::sendPositions()
  */
 //--------------------------------------------------------------
 void ofApp::assignGoalIndex(unsigned char mode) {
-    
-    if(ofGetElapsedTimeMillis() % 10 < 1) {
-        simulator.flushGoals();
-        for (int k = 0; k < robotCollection.size(); k++) {
-            const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
-            simulator.addGoal(vec);
-        }
-    }
     
     if (mode == 0) {
         for (int k = 0; k < robotCollection.size(); k++) {
