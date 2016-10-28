@@ -28,10 +28,14 @@ private:
 	bool goalReached;
 	ofColor color;
 	unsigned int batteryLevel;
+    float speed;
+    uint8_t jerkiness;
+    float jitter;
 public:
     RobotState();
     ~RobotState();
 	RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec2f _goal, float _angle, ofColor _color, uint8_t _battery);
+    RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec2f _goal, float _angle, ofColor _color, uint8_t _battery, float _speed, uint8_t _jerkiness, float _jitter);
 
     bool operator==(const RobotState& r);
     bool operator!=(const RobotState& r);
@@ -45,6 +49,9 @@ public:
     unsigned int getId();
     float getRadius();
 	uint8_t getBatteryLevel();
+    float getSpeed();
+    uint8_t getJerkiness();
+    float getJitter();
 
     void setPosition(ofVec2f _pos);
     void setPosition(float _x, float _y);
@@ -57,6 +64,9 @@ public:
     void setTouch(uint8_t _touch);
     void setId(unsigned int _id);
 	void setBatteryLevel(uint8_t _battery);
+    void setSpeed(float _speed);
+    void setJerkiness(uint8_t _jerkiness);
+    void setJitter(float _jitter);
 
     void drawRobot(ofxSVG* artwork, float scale);
 	void drawGoal();

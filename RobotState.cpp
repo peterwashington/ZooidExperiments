@@ -34,8 +34,24 @@ RobotState::RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec
 	color = _color;
 	batteryLevel = _battery;
 	id = _id;
+    speed = 0;
+    jerkiness = 0;
 }
 
+RobotState::RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec2f _goal, float _angle, ofColor _color, uint8_t _battery, float _speed, uint8_t _jerkiness, float _jitter) {
+    position = _position;
+    radius = _radius;
+    angle = _angle;
+    goal = _goal;
+    touch = NO_TOUCH;
+    goalReached = true;
+    color = _color;
+    batteryLevel = _battery;
+    id = _id;
+    speed = _speed;
+    jerkiness = _jerkiness;
+    jitter = _jitter;
+}
 
 bool RobotState::operator==(const RobotState& r)
 {
@@ -85,6 +101,21 @@ uint8_t RobotState::getBatteryLevel()
 	return batteryLevel;
 }
 
+float RobotState::getSpeed()
+{
+    return speed;
+}
+
+uint8_t RobotState::getJerkiness()
+{
+    return jerkiness;
+}
+
+float RobotState::getJitter()
+{
+    return jitter;
+}
+
 void RobotState::setPosition(ofVec2f _pos) {
 	position = _pos;
 }
@@ -130,6 +161,21 @@ void RobotState::setId(unsigned int _id) {
 void RobotState::setBatteryLevel(uint8_t _battery)
 {
 	batteryLevel = _battery;
+}
+
+void RobotState::setSpeed(float _speed)
+{
+    speed = _speed;
+}
+
+void RobotState::setJerkiness(uint8_t _jerkiness)
+{
+    jerkiness = _jerkiness;
+}
+
+void RobotState::setJitter(float _jitter)
+{
+    jitter = _jitter;
 }
 
 void RobotState::drawRobot(ofxSVG* artwork, float scale)

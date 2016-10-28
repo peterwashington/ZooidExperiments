@@ -3,10 +3,7 @@
 int assignmentMode = 0;
 bool displayHelp = false;
 float finalOrientation = 90.0f;
-
-
-
-
+float maxJitterOffset = 0.005f;
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofSetFrameRate(60);
@@ -27,7 +24,7 @@ void ofApp::setup(){
     
     //create the socket and set to send to 127.0.0.1:11999
     udpSender.Create();
-    udpSender.Connect("127.0.0.1",11999);
+    udpSender.Connect("127.0.0.1", 11999);
     udpSender.SetNonBlocking(true);
     
     udpReceiver.Create();
@@ -54,18 +51,18 @@ void ofApp::setup(){
     {
         float tmpAngle;
         ofVec2f finalPosition = ofVec2f(ofRandom(0.1f, dimensionX - 0.1f), ofRandom(0.1f, dimensionY - 0.1f));
-        ofVec2f initialPosition = ofVec2f(ofRandom(0.1f, dimensionX-0.1f), ofRandom(0.1f, dimensionY - 0.1f));
+        ofVec2f initialPosition = ofVec2f(ofRandom(0.1f, dimensionX - 0.1f), ofRandom(0.1f, dimensionY - 0.1f));
         tmpAngle = ofRandom(-180.0f, 180.0f);
         
         ofColor tmpColor =  ofColor(ofRandomf()*255.0f, ofRandomf()*255.0f, ofRandomf()*255.0f);
         
         RobotState tmpRobot = RobotState(0, robotRadius, initialPosition, ofVec2f(0.0f, 0.0f), tmpAngle, tmpColor, 100);
         simulator.addGoal(hrvo::Vector2(finalPosition.x, finalPosition.y));
-        unsigned int tmpId = simulator.addAgent(hrvo::Vector2(initialPosition.x, initialPosition.y),0);
+        unsigned int tmpId = simulator.addAgent(hrvo::Vector2(initialPosition.x, initialPosition.y), 0);
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
-        
-        
+        tmpRobot.setSpeed(.05f*(i+1)); // if speed is 0, zooid doesn't show up
+        tmpRobot.setJitter(1.f);
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
     }
@@ -213,6 +210,9 @@ bool ofApp::runSimulation()
 			hrvo::Vector2 distance = simulator.getAgentPosition(robotCollection[i].getId()) - simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId()));
 			float k =  pow(abs(distance), 2.0f)*500.0f;
 			if (k >= 1.0f) k = 1.0f;
+            prefSpeed = robotCollection[i].getSpeed();
+            if (currentTimestep % 200 < 100)
+                prefSpeed *= 0.1f;
 			simulator.setAgentPrefSpeed(i, prefSpeed * k);
 			simulator.setAgentMaxSpeed(i, 1.1f * prefSpeed * k);
 
@@ -226,13 +226,12 @@ bool ofApp::runSimulation()
                 //if the swarmreicever is not connected, just use the simulation positions
                 if(!receiverConnected)
                 {
-                    robotCollection[i].setPosition(simulator.getAgentPosition(robotCollection[i].getId()).getX(), simulator.getAgentPosition(robotCollection[i].getId()).getY());
-//                    robotCollection[i].setAngle(simulator.getAgentOrientation(robotCollection[i].getId()) * 180.0f / PI);
+                    float randx = maxJitterOffset * ofRandom(-1.f, 1.f);
+                    float randy = maxJitterOffset * ofRandom(-1.f, 1.f);
+                    robotCollection[i].setPosition(simulator.getAgentPosition(robotCollection[i].getId()).getX() + robotCollection[i].getJitter() * randx,
+                                                   simulator.getAgentPosition(robotCollection[i].getId()).getY() + robotCollection[i].getJitter() * randy);
+                    robotCollection[i].setAngle(simulator.getAgentOrientation(robotCollection[i].getId()) * 180.0f / PI);
 					robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
-                    if (currentTimestep % 10 == 5) {
-                        robotCollection[i].setAngle(ofRandom(-180, 180));
-                        robotCollection[i].setRadius(ofRandom(-180, 180));
-                    }
                 }
 				robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
 
