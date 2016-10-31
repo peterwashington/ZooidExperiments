@@ -39,6 +39,7 @@ public:
 	 
 	void assignGoalIndex(unsigned char mode);
 
+    void updateRobotsStates(float speed, uint8_t jerkiness);
     void keyPressed(int key);
     void keyReleased(int key);
     void mouseMoved(int x, int y );

@@ -529,6 +529,19 @@ void ofApp::assignGoalIndex(unsigned char mode) {
 }
 
 //--------------------------------------------------------------
+void ofApp::updateRobotsStates(float speed, uint8_t jerkiness) {
+    for (int i = 0; i < robotCollection.size(); i++) {
+        robotCollection[i].setSpeed(speed);
+        robotCollection[i].setJerkiness(jerkiness);
+        if (jitter)
+            robotCollection[i].setJitter(1.f);
+        else
+            robotCollection[i].setJitter(0.f);
+    }
+    
+}
+
+//--------------------------------------------------------------
 void ofApp::keyPressed(int key) {
     
     switch (key)
@@ -555,9 +568,9 @@ void ofApp::keyPressed(int key) {
             break;
             
         case '1':
-            kSpeed = 0.04f;
 			synchronized = true;
 			jitter = true;
+            updateRobotsStates(0.04f, 0);
             break;
         case '2':
             kSpeed = 0.4f;
