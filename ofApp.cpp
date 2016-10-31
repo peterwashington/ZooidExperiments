@@ -15,7 +15,7 @@ void ofApp::setup(){
     simulationMode = NO_PLANNING;
     
     synchronized = false;
-    jitter = false;
+    jitter = true;
     
     kSpeed = 0.4f;
     prefSpeed = kSpeed * maxSpeed;
@@ -65,7 +65,11 @@ void ofApp::setup(){
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
         tmpRobot.setSpeed(.4f); // if speed is 0, zooid doesn't show up
-        //      tmpRobot.setJitter(0.f);
+        if (jitter)
+        {
+            tmpRobot.setJerkiness(1);
+            tmpRobot.setJitter(1.f);
+        }
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
     }
