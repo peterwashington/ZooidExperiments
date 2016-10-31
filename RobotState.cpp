@@ -36,6 +36,7 @@ RobotState::RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec
 	id = _id;
     speed = 0;
     jerkiness = 0;
+    jitter = 0;
 }
 
 RobotState::RobotState(unsigned int _id, float _radius, ofVec2f _position, ofVec2f _goal, float _angle, ofColor _color, uint8_t _battery, float _speed, uint8_t _jerkiness, float _jitter) {

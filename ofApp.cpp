@@ -62,7 +62,8 @@ void ofApp::setup(){
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
         tmpRobot.setSpeed(.05f*(i+1)); // if speed is 0, zooid doesn't show up
-        tmpRobot.setJitter(1.f);
+        tmpRobot.setJerkiness(0);
+        tmpRobot.setJitter(0.f);
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
     }
@@ -211,8 +212,11 @@ bool ofApp::runSimulation()
 			float k =  pow(abs(distance), 2.0f)*500.0f;
 			if (k >= 1.0f) k = 1.0f;
             prefSpeed = robotCollection[i].getSpeed();
-            if (currentTimestep % 200 < 100)
-                prefSpeed *= 0.1f;
+            if (robotCollection[i].getJerkiness())
+            {
+                if (currentTimestep % 200 < 100)
+                    prefSpeed *= 0.1f;
+            }
 			simulator.setAgentPrefSpeed(i, prefSpeed * k);
 			simulator.setAgentMaxSpeed(i, 1.1f * prefSpeed * k);
 
@@ -266,7 +270,7 @@ void ofApp::sendRobotsOrders()
 						simulator.getAgentPosition(robotCollection[i].getId()).getY(),
 						robotCollection[i].getColor(),
 						robotCollection[i].getAngle(),//finalOrientation,
-						kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+						prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
 						robotCollection[i].isGoalReached());
 					//controlRobotPosition(10+robotCollection[i].getId(),
 					//	simulator.getAgentPosition(robotCollection[i].getId()).getX(),
@@ -288,7 +292,7 @@ void ofApp::sendRobotsOrders()
 						simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getY(),
 						robotCollection[i].getColor(),
 						robotCollection[i].getAngle(), //finalOrientation,
-						kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+						prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
 						robotCollection[i].isGoalReached());
 					//controlRobotPosition(10+robotCollection[i].getId(),
 					//	simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getX(),
