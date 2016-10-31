@@ -3,7 +3,7 @@
 int assignmentMode = 0;
 bool displayHelp = false;
 float finalOrientation = 90.0f;
-float maxJitterOffset = 0.005f;
+float maxJitterOffset = 0.01f;
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofSetFrameRate(60);
@@ -17,7 +17,7 @@ void ofApp::setup(){
     synchronized = false;
     jitter = true;
     
-    kSpeed = 0.4f;
+    kSpeed = 0.1f;
     prefSpeed = kSpeed * maxSpeed;
     uncertaintyOffset = 0.05f * prefSpeed;
     
@@ -57,18 +57,18 @@ void ofApp::setup(){
         ofVec2f initialPosition = ofVec2f(ofRandom(0.1f, dimensionX - 0.1f), ofRandom(0.1f, dimensionY - 0.1f));
         tmpAngle = ofRandom(-180.0f, 180.0f);
         
-        ofColor tmpColor =  ofColor(ofRandomf()*255.0f, ofRandomf()*255.0f, ofRandomf()*255.0f);
+		ofColor tmpColor = ofColor::mediumPurple;// ofColor(ofRandomf()*255.0f, ofRandomf()*255.0f, ofRandomf()*255.0f);
         
         RobotState tmpRobot = RobotState(0, robotRadius, initialPosition, ofVec2f(0.0f, 0.0f), tmpAngle, tmpColor, 100);
         simulator.addGoal(hrvo::Vector2(finalPosition.x, finalPosition.y));
         unsigned int tmpId = simulator.addAgent(hrvo::Vector2(initialPosition.x, initialPosition.y), 0);
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
-        tmpRobot.setSpeed(.4f); // if speed is 0, zooid doesn't show up
+		tmpRobot.setSpeed(prefSpeed); // if speed is 0, zooid doesn't show up
         if (jitter)
         {
-            tmpRobot.setJerkiness(1);
-            tmpRobot.setJitter(1.f);
+            tmpRobot.setJerkiness((uint8_t) ofRandom(100/kSpeed, 300/kSpeed)); // jerkiness interval depends on robot speed
+            tmpRobot.setJitter(0.f);
         }
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
@@ -220,8 +220,8 @@ bool ofApp::runSimulation()
             prefSpeed = robotCollection[i].getSpeed();
             if (robotCollection[i].getJerkiness())
             {
-                if (currentTimestep % 200 < 100)
-                    prefSpeed *= 0.1f;
+				if (currentTimestep % (2 * robotCollection[i].getJerkiness()) < (1 * robotCollection[i].getJerkiness()))
+					prefSpeed = 0.00001f; // *= 0.001f;
             }
             simulator.setAgentPrefSpeed(i, prefSpeed * k);
             simulator.setAgentMaxSpeed(i, 1.1f * prefSpeed * k);
@@ -236,8 +236,8 @@ bool ofApp::runSimulation()
                 //if the swarmreicever is not connected, just use the simulation positions
                 if(!receiverConnected)
                 {
-                    float randx = maxJitterOffset * ofRandom(-1.f, 1.f);
-                    float randy = maxJitterOffset * ofRandom(-1.f, 1.f);
+                    float randx = maxJitterOffset * ofRandom(-1.f, 1.f) * prefSpeed;
+                    float randy = maxJitterOffset * ofRandom(-1.f, 1.f) * prefSpeed;
                     robotCollection[i].setPosition(simulator.getAgentPosition(robotCollection[i].getId()).getX() + robotCollection[i].getJitter() * randx,
                                                    simulator.getAgentPosition(robotCollection[i].getId()).getY() + robotCollection[i].getJitter() * randy);
                     robotCollection[i].setAngle(simulator.getAgentOrientation(robotCollection[i].getId()) * 180.0f / PI);
@@ -400,8 +400,11 @@ void ofApp::receiveAppGoals() {
     if (synchronized) {
         for (int i = 0; i < robotCollection.size(); i++) {
             RobotState r = robotCollection[i];
-            r.setColor(ofColor::purple);
-            if (simulator.getAgentReachedGoal(r.getId())) {
+			float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
+			/*float xDistance = r.getGoal().x - r.getPosition().x;
+			float yDistance = r.getGoal().y - r.getPosition().y;
+			float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
+            if (distance < robotDiameter) {
                 const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
                 for (int j = 0; j < robotCollection.size(); j++) {
                     simulator.setAgentGoal(j, vec);
@@ -412,10 +415,15 @@ void ofApp::receiveAppGoals() {
     else {
         for (int i = 0; i < robotCollection.size(); i++) {
             RobotState r = robotCollection[i];
-            r.setColor(ofColor::purple);
-            if (simulator.getAgentReachedGoal(r.getId())) {
-                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
-                simulator.setAgentGoal(i, vec);
+			float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
+			/*float xDistance = r.getGoal().x - r.getPosition().x;
+			float yDistance = r.getGoal().y - r.getPosition().y;
+			float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
+			if (distance < (robotDiameter / 2.f)) {
+				const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
+				for (int j = 0; j < robotCollection.size(); j++) {
+					simulator.setAgentGoal(i, vec);
+				}
             }
         }
     }
@@ -548,33 +556,53 @@ void ofApp::keyPressed(int key) {
             
         case '1':
             kSpeed = 0.04f;
+			synchronized = true;
+			jitter = true;
             break;
         case '2':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '3':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '4':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '5':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '6':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '7':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '8':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '9':
             kSpeed = 0.4f;
+			synchronized = true;
+			jitter = true;
             break;
         case '0':
             kSpeed = 0.04f;
+			synchronized = true;
+			jitter = true;
             break;
             
         case OF_KEY_UP:
