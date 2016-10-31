@@ -12,7 +12,10 @@ void ofApp::setup(){
     robotToCommand = -1;
     
     previousSimulationTimestamp = 0;
-	simulationMode = NO_PLANNING;
+    simulationMode = NO_PLANNING;
+    
+    synchronized = false;
+    jitter = false;
     
     kSpeed = 0.4f;
     prefSpeed = kSpeed * maxSpeed;
@@ -32,18 +35,18 @@ void ofApp::setup(){
     udpReceiver.SetNonBlocking(true);
     
 #ifdef TARGET_WIN32
-	swarmReceivers.push_back(new SwarmReceiver("COM4"));
-	//swarmReceivers.push_back(new SwarmReceiver("COM5"));
+    swarmReceivers.push_back(new SwarmReceiver("COM4"));
+    //swarmReceivers.push_back(new SwarmReceiver("COM5"));
 #else
-	swarmReceivers.push_back(new SwarmReceiver(1));
-	//    swarmReceivers.push_back(new SwarmReceiver(2));
+    swarmReceivers.push_back(new SwarmReceiver(1));
+    //    swarmReceivers.push_back(new SwarmReceiver(2));
 #endif
     
-	receiverConnected = true;
-	for (int i = 0; i < swarmReceivers.size(); i++)
-		receiverConnected &= swarmReceivers[i]->isInitialized();
-
-	simulator.setTimeStep(timeStep);
+    receiverConnected = true;
+    for (int i = 0; i < swarmReceivers.size(); i++)
+        receiverConnected &= swarmReceivers[i]->isInitialized();
+    
+    simulator.setTimeStep(timeStep);
     simulator.setAgentDefaults(neighborDist, maxNeighbors, robotRadius, goalRadius, prefSpeed, maxSpeed,
                                timeToOrientation, wheelTrack, uncertaintyOffset, maxAccel, hrvo::Vector2(0.0f, 0.0f), 0.0f);
     
@@ -61,9 +64,8 @@ void ofApp::setup(){
         unsigned int tmpId = simulator.addAgent(hrvo::Vector2(initialPosition.x, initialPosition.y), 0);
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
-        tmpRobot.setSpeed(.05f*(i+1)); // if speed is 0, zooid doesn't show up
-        tmpRobot.setJerkiness(0);
-        tmpRobot.setJitter(0.f);
+        tmpRobot.setSpeed(.4f); // if speed is 0, zooid doesn't show up
+        //      tmpRobot.setJitter(0.f);
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
     }
@@ -76,8 +78,8 @@ void ofApp::update()
 {
     receiveAppGoals();
     readRobotsPositions();
-	if(simulationMode == ON)
-		runSimulation();
+    if(simulationMode == ON)
+        runSimulation();
     sendRobotsOrders();
     sendPositions();
 }
@@ -85,21 +87,21 @@ void ofApp::update()
 //--------------------------------------------------------------
 void ofApp::draw(){
     ofBackgroundGradient(ofColor(220, 240, 240), ofColor(180, 210, 210));
-	switch (simulationMode)
-	{
-	case ON:
-		ofSetColor(ofColor::green);
-		break;
-	case OFF:
-		ofSetColor(ofColor::red);
-		break;
-	case NO_PLANNING:
-		ofSetColor(ofColor::orange);
-		break;
-	default:
-		break;
-	}
-
+    switch (simulationMode)
+    {
+        case ON:
+            ofSetColor(ofColor::green);
+            break;
+        case OFF:
+            ofSetColor(ofColor::red);
+            break;
+        case NO_PLANNING:
+            ofSetColor(ofColor::orange);
+            break;
+        default:
+            break;
+    }
+    
     ofFill();
     ofDrawCircle(30.0f, 30.0f, 20.0f);
     ofNoFill();
@@ -115,12 +117,12 @@ void ofApp::draw(){
     ofFill();
     ofSetColor(ofColor::darkGrey, 95);
     
-	if (simulationMode == ON)
-	{
-		for (int i = 0; i < simulator.getNumAgents(); i++)
-			ofDrawCircle(simulator.getAgentPosition(i).getX(), simulator.getAgentPosition(i).getY(), robotRadius);
-	}
-
+    if (simulationMode == ON)
+    {
+        for (int i = 0; i < simulator.getNumAgents(); i++)
+            ofDrawCircle(simulator.getAgentPosition(i).getX(), simulator.getAgentPosition(i).getY(), robotRadius);
+    }
+    
     for (int i = 0; i < robotCollection.size(); i++)
     {
         robotCollection[i].drawGoal();
@@ -207,24 +209,24 @@ bool ofApp::runSimulation()
         
         for (int i = 0; i < robotCollection.size(); i++)
         {
-			//trick to slow them down around th goal, figure out something betteR
-			hrvo::Vector2 distance = simulator.getAgentPosition(robotCollection[i].getId()) - simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId()));
-			float k =  pow(abs(distance), 2.0f)*500.0f;
-			if (k >= 1.0f) k = 1.0f;
+            //trick to slow them down around th goal, figure out something betteR
+            hrvo::Vector2 distance = simulator.getAgentPosition(robotCollection[i].getId()) - simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId()));
+            float k =  pow(abs(distance), 2.0f)*500.0f;
+            if (k >= 1.0f) k = 1.0f;
             prefSpeed = robotCollection[i].getSpeed();
             if (robotCollection[i].getJerkiness())
             {
                 if (currentTimestep % 200 < 100)
                     prefSpeed *= 0.1f;
             }
-			simulator.setAgentPrefSpeed(i, prefSpeed * k);
-			simulator.setAgentMaxSpeed(i, 1.1f * prefSpeed * k);
-
-			if (simulator.getAgentReachedGoal(i))
-				simulator.setAgentPrefSpeed(i, 0.0f);
-			else
-				simulator.setAgentPrefSpeed(i, prefSpeed * k);
-
+            simulator.setAgentPrefSpeed(i, prefSpeed * k);
+            simulator.setAgentMaxSpeed(i, 1.1f * prefSpeed * k);
+            
+            if (simulator.getAgentReachedGoal(i))
+                simulator.setAgentPrefSpeed(i, 0.0f);
+            else
+                simulator.setAgentPrefSpeed(i, prefSpeed * k);
+            
             if (robotCollection[i].getTouch() == 0)
             {
                 //if the swarmreicever is not connected, just use the simulation positions
@@ -235,20 +237,16 @@ bool ofApp::runSimulation()
                     robotCollection[i].setPosition(simulator.getAgentPosition(robotCollection[i].getId()).getX() + robotCollection[i].getJitter() * randx,
                                                    simulator.getAgentPosition(robotCollection[i].getId()).getY() + robotCollection[i].getJitter() * randy);
                     robotCollection[i].setAngle(simulator.getAgentOrientation(robotCollection[i].getId()) * 180.0f / PI);
-                    if (simulator.getAgentReachedGoal(robotCollection[i].getId())) {
-                        const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
-//                        robotCollection[i].setGoal(vec);
-                        simulator.setAgentGoal(i, vec);
-                    }
+                    robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
+                    //                    if (simulator.getAgentReachedGoal(robotCollection[i].getId())) {
+                    //                        const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
+                    ////                        robotCollection[i].setGoal(vec);
+                    //                        simulator.setAgentGoal(i, vec);
+                    //                    }
                 }
-                if (simulator.getAgentReachedGoal(robotCollection[i].getId())) {
-                    const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(0.0f,0.8f), ofRandom(0.0f,0.5f));
-                    //                        robotCollection[i].setGoal(vec);
-                    simulator.setAgentGoal(i, vec);
-                }
-//				robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
-
-
+                robotCollection[i].setGoalReached(simulator.getAgentReachedGoal(robotCollection[i].getId()));
+                
+                
             }
         }
         previousSimulationTimestamp = currentTimestep;
@@ -264,86 +262,86 @@ void ofApp::sendRobotsOrders()
     {
         for (int i = 0; i < robotCollection.size(); i++)
         {
-			if (robotCollection[i].getTouch() == 0)
-			{
-				
-				if (simulationMode == ON)
-				{
-					///////////////////////////////////////////////////////////////////
-					//
-					//  DONT FORGET !!!!!!!!
-					///////////////////////////////////////////////////////////////////
-
-					controlRobotPosition(robotCollection[i].getId(),
-						simulator.getAgentPosition(robotCollection[i].getId()).getX(),
-						simulator.getAgentPosition(robotCollection[i].getId()).getY(),
-						robotCollection[i].getColor(),
-						robotCollection[i].getAngle(),//finalOrientation,
-						prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
-						robotCollection[i].isGoalReached());
-					//controlRobotPosition(10+robotCollection[i].getId(),
-					//	simulator.getAgentPosition(robotCollection[i].getId()).getX(),
-					//	simulator.getAgentPosition(robotCollection[i].getId()).getY(),
-					//	robotCollection[i].getColor(),
-					//	finalOrientation,
-					//	kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
-					//	robotCollection[i].isGoalReached());
-				}
-				else if (simulationMode == NO_PLANNING)
-				{		
-					///////////////////////////////////////////////////////////////////
-					//
-					//  DONT FORGET !!!!!!!!
-					///////////////////////////////////////////////////////////////////
-
-					controlRobotPosition(robotCollection[i].getId(),
-						simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getX(),
-						simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getY(),
-						robotCollection[i].getColor(),
-						robotCollection[i].getAngle(), //finalOrientation,
-						prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
-						robotCollection[i].isGoalReached());
-					//controlRobotPosition(10+robotCollection[i].getId(),
-					//	simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getX(),
-					//	simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getY(),
-					//	robotCollection[i].getColor(),
-					//	finalOrientation,
-					//	kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
-					//	robotCollection[i].isGoalReached());
-				}
-			}
-		}
+            if (robotCollection[i].getTouch() == 0)
+            {
+                
+                if (simulationMode == ON)
+                {
+                    ///////////////////////////////////////////////////////////////////
+                    //
+                    //  DONT FORGET !!!!!!!!
+                    ///////////////////////////////////////////////////////////////////
+                    
+                    controlRobotPosition(robotCollection[i].getId(),
+                                         simulator.getAgentPosition(robotCollection[i].getId()).getX(),
+                                         simulator.getAgentPosition(robotCollection[i].getId()).getY(),
+                                         robotCollection[i].getColor(),
+                                         robotCollection[i].getAngle(),//finalOrientation,
+                                         prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+                                         robotCollection[i].isGoalReached());
+                    //controlRobotPosition(10+robotCollection[i].getId(),
+                    //	simulator.getAgentPosition(robotCollection[i].getId()).getX(),
+                    //	simulator.getAgentPosition(robotCollection[i].getId()).getY(),
+                    //	robotCollection[i].getColor(),
+                    //	finalOrientation,
+                    //	kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+                    //	robotCollection[i].isGoalReached());
+                }
+                else if (simulationMode == NO_PLANNING)
+                {
+                    ///////////////////////////////////////////////////////////////////
+                    //
+                    //  DONT FORGET !!!!!!!!
+                    ///////////////////////////////////////////////////////////////////
+                    
+                    controlRobotPosition(robotCollection[i].getId(),
+                                         simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getX(),
+                                         simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getY(),
+                                         robotCollection[i].getColor(),
+                                         robotCollection[i].getAngle(), //finalOrientation,
+                                         prefSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+                                         robotCollection[i].isGoalReached());
+                    //controlRobotPosition(10+robotCollection[i].getId(),
+                    //	simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getX(),
+                    //	simulator.getGoalPosition(simulator.getAgentGoal(robotCollection[i].getId())).getY(),
+                    //	robotCollection[i].getColor(),
+                    //	finalOrientation,
+                    //	kSpeed*100.0f,// ofMap(abs(simulator.getAgentVelocity(robotCollection[i].getId())), 0.0f, prefSpeed, 0, 40.0f)-5.0f,
+                    //	robotCollection[i].isGoalReached());
+                }
+            }
+        }
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::readRobotsPositions()
 {
-	//updating the positions with the data received from robots
-	for (int i = 0; i < swarmReceivers.size(); i++)
-	{
-		while (swarmReceivers[i]->availableMessages() > 0)
-		{
-			Message msg = swarmReceivers[i]->getLastMessage();
-			uint16_t robotId = msg.getSenderId();
-			//cout << "dlfkaj" << endl;
-			if (robotId < robotCollection.size() && msg.getType() == TYPE_STATUS)
-			{
-				StatusMessage status;
-
-				memcpy(&status, msg.getPayload(), sizeof(StatusMessage));
-
-				float robotA = (float)(status.orientation) / 100.0f;
-				float robotX = ofMap((float)status.positionX, coordinatesMinX, coordinatesMaxX, 0.0f, dimensionX);
-				float robotY = ofMap((float)status.positionY, coordinatesMinY, coordinatesMaxY, 0.0f, dimensionY);
-
-				robotCollection[robotId].setTouch(status.touch);
-				robotCollection[robotId].setPosition(robotX, robotY);
-				/*robotCollection[robotId].setAngle(robotA);*/
-				robotCollection[robotId].setBatteryLevel(status.batteryLevel);
-			}
-		}
-	}
+    //updating the positions with the data received from robots
+    for (int i = 0; i < swarmReceivers.size(); i++)
+    {
+        while (swarmReceivers[i]->availableMessages() > 0)
+        {
+            Message msg = swarmReceivers[i]->getLastMessage();
+            uint16_t robotId = msg.getSenderId();
+            //cout << "dlfkaj" << endl;
+            if (robotId < robotCollection.size() && msg.getType() == TYPE_STATUS)
+            {
+                StatusMessage status;
+                
+                memcpy(&status, msg.getPayload(), sizeof(StatusMessage));
+                
+                float robotA = (float)(status.orientation) / 100.0f;
+                float robotX = ofMap((float)status.positionX, coordinatesMinX, coordinatesMaxX, 0.0f, dimensionX);
+                float robotY = ofMap((float)status.positionY, coordinatesMinY, coordinatesMaxY, 0.0f, dimensionY);
+                
+                robotCollection[robotId].setTouch(status.touch);
+                robotCollection[robotId].setPosition(robotX, robotY);
+                /*robotCollection[robotId].setAngle(robotA);*/
+                robotCollection[robotId].setBatteryLevel(status.batteryLevel);
+            }
+        }
+    }
 }
 
 //--------------------------------------------------------------
@@ -358,86 +356,109 @@ void ofApp::controlRobotSpeed(int id, int8_t motor1, int8_t motor2, ofColor colo
         buffer[2] = color.r;
         buffer[3] = color.g;
         buffer[4] = color.b;
-		swarmReceivers[id/NB_ROBOTS_PER_RECEIVER]->sendUSB(TYPE_MOTORS_VELOCITY, robotCollection[id].getId(), sizeof(buffer), (uint8_t*)&buffer[0]);
+        swarmReceivers[id/NB_ROBOTS_PER_RECEIVER]->sendUSB(TYPE_MOTORS_VELOCITY, robotCollection[id].getId(), sizeof(buffer), (uint8_t*)&buffer[0]);
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::controlRobotPosition(uint8_t id, float x, float y, ofColor color, float orientation, float preferredSpeed, bool isFinalGoal)
 {
-	PositionControlMessage msg;
+    PositionControlMessage msg;
     //if (id >= 0 && id < robotCollection.size())
     {
-		float tmpX = x, tmpY = y;
-		if (tmpX > dimensionX) tmpX = dimensionX;
-		if (tmpX < 0.0f) tmpX = 0.0f;
-		if (tmpY > dimensionY) tmpY = dimensionY;
-		if (tmpY < 0.0f) tmpX = 0.0f;
-
-		msg.positionX = (uint16_t)ofMap(tmpX, 0.0f, dimensionX, coordinatesMinX, coordinatesMaxX);
-		msg.positionY = (uint16_t)ofMap(tmpY, 0.0f, dimensionY, coordinatesMinY, coordinatesMaxY);
-		msg.colorRed = color.r;
-		msg.colorGreen = color.g;
-		msg.colorBlue = color.b;
-		msg.orientation = (uint16_t)(orientation*100.0f);
-		msg.preferredSpeed = (uint8_t)preferredSpeed;
-		msg.isFinalGoal = isFinalGoal;
-		msg.empty = 0xff;
-		///////////////////////////////////////////////////////////////////
-		//
-		//  DONT FORGET !!!!!!!!
-		///////////////////////////////////////////////////////////////////
-		int receiverId = id / NB_ROBOTS_PER_RECEIVER;
-		//int receiverId = id / NB_ROBOTS_PER_RECEIVER-1;
+        float tmpX = x, tmpY = y;
+        if (tmpX > dimensionX) tmpX = dimensionX;
+        if (tmpX < 0.0f) tmpX = 0.0f;
+        if (tmpY > dimensionY) tmpY = dimensionY;
+        if (tmpY < 0.0f) tmpX = 0.0f;
+        
+        msg.positionX = (uint16_t)ofMap(tmpX, 0.0f, dimensionX, coordinatesMinX, coordinatesMaxX);
+        msg.positionY = (uint16_t)ofMap(tmpY, 0.0f, dimensionY, coordinatesMinY, coordinatesMaxY);
+        msg.colorRed = color.r;
+        msg.colorGreen = color.g;
+        msg.colorBlue = color.b;
+        msg.orientation = (uint16_t)(orientation*100.0f);
+        msg.preferredSpeed = (uint8_t)preferredSpeed;
+        msg.isFinalGoal = isFinalGoal;
+        msg.empty = 0xff;
+        ///////////////////////////////////////////////////////////////////
+        //
+        //  DONT FORGET !!!!!!!!
+        ///////////////////////////////////////////////////////////////////
+        int receiverId = id / NB_ROBOTS_PER_RECEIVER;
+        //int receiverId = id / NB_ROBOTS_PER_RECEIVER-1;
         swarmReceivers[receiverId]->sendUSB(TYPE_ROBOT_POSITION, id, sizeof(msg), (uint8_t*)&msg);
     }
 }
 
 //--------------------------------------------------------------
-void ofApp::receiveAppGoals()
-{
-    char udpMessage[10000] = { 0 };
-    
-    while (udpReceiver.PeekReceive()>0)
-    {
-        int nbBytesReceived = udpReceiver.Receive(udpMessage, 10000);
-		if (nbBytesReceived > 0)
-		{
-			for (int j = 0; j < nbBytesReceived / sizeof(RobotState); j++)
-			{
-				RobotState tmpRobot;
-				memcpy(&tmpRobot, &udpMessage[j*sizeof(RobotState)], sizeof(RobotState));
-
-
-				if (tmpRobot.getGoal().x < robotDiameter) tmpRobot.setGoal(robotDiameter, tmpRobot.getGoal().y);
-				if (tmpRobot.getGoal().x > dimensionX - robotDiameter) tmpRobot.setGoal(dimensionX - robotDiameter, tmpRobot.getGoal().y);
-				if (tmpRobot.getGoal().y < robotDiameter) tmpRobot.setGoal(tmpRobot.getGoal().x, robotDiameter);
-				if (tmpRobot.getGoal().y > dimensionY - robotDiameter) tmpRobot.setGoal(tmpRobot.getGoal().x, dimensionY - robotDiameter);
-				for (int i = 0; i < robotCollection.size(); i++)
-				{
-					unsigned int tmpId = tmpRobot.getId();
-					auto it = find_if(robotCollection.begin(), robotCollection.end(), [&tmpId](RobotState& r) {return r.getId() == tmpId; });
-					if (it != robotCollection.end())
-					{
-						    it->setAngle(tmpRobot.getAngle());
-						it->setColor(tmpRobot.getColor());
-						break;
-					}
-				}
-
-				if (j < simulator.getNumAgents())
-				{
-					//to avoid divisions by zero in the simulation
-					if (tmpRobot.getPosition() == tmpRobot.getGoal())
-						tmpRobot.setGoal(tmpRobot.getGoal() + 0.0001f);
-				}
-				if (j < simulator.getNumGoals())
-					simulator.setAgentGoal(j, hrvo::Vector2(tmpRobot.getGoal().x, tmpRobot.getGoal().y));
-			}
-			assignGoalIndex(assignmentMode);
-		}
+void ofApp::receiveAppGoals() {
+    if (synchronized) {
+        for (int i = 0; i < robotCollection.size(); i++) {
+            RobotState r = robotCollection[i];
+            r.setColor(ofColor::purple);
+            if (simulator.getAgentReachedGoal(r.getId())) {
+                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
+                for (int j = 0; j < robotCollection.size(); j++) {
+                    simulator.setAgentGoal(j, vec);
+                }
+            }
+        }
     }
+    else {
+        for (int i = 0; i < robotCollection.size(); i++) {
+            RobotState r = robotCollection[i];
+            r.setColor(ofColor::purple);
+            if (simulator.getAgentReachedGoal(r.getId())) {
+                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
+                simulator.setAgentGoal(i, vec);
+            }
+        }
+    }
+    assignGoalIndex(assignmentMode);
 }
+
+//	char udpMessage[10000] = { 0 };
+//
+//	while (udpReceiver.PeekReceive() > 0)
+//	{
+//		int nbBytesReceived = udpReceiver.Receive(udpMessage, 10000);
+//		if (nbBytesReceived > 0)
+//		{
+//			for (int j = 0; j < nbBytesReceived / sizeof(RobotState); j++)
+//			{
+//				RobotState tmpRobot;
+//				memcpy(&tmpRobot, &udpMessage[j*sizeof(RobotState)], sizeof(RobotState));
+//
+//				if (tmpRobot.getGoal().x < robotDiameter) tmpRobot.setGoal(robotDiameter, tmpRobot.getGoal().y);
+//				if (tmpRobot.getGoal().x > dimensionX - robotDiameter) tmpRobot.setGoal(dimensionX - robotDiameter, tmpRobot.getGoal().y);
+//				if (tmpRobot.getGoal().y < robotDiameter) tmpRobot.setGoal(tmpRobot.getGoal().x, robotDiameter);
+//				if (tmpRobot.getGoal().y > dimensionY - robotDiameter) tmpRobot.setGoal(tmpRobot.getGoal().x, dimensionY - robotDiameter);
+//				for (int i = 0; i < robotCollection.size(); i++)
+//				{
+//					unsigned int tmpId = tmpRobot.getId();
+//					auto it = find_if(robotCollection.begin(), robotCollection.end(), [&tmpId](RobotState& r) {return r.getId() == tmpId; });
+//					if (it != robotCollection.end())
+//					{
+//						it->setAngle(tmpRobot.getAngle());
+//						it->setColor(tmpRobot.getColor());
+//						break;
+//					}
+//				}
+//
+//				if (j < simulator.getNumAgents())
+//				{
+//					//to avoid divisions by zero in the simulation
+//					if (tmpRobot.getPosition() == tmpRobot.getGoal())
+//						tmpRobot.setGoal(tmpRobot.getGoal() + 0.0001f);
+//				}
+//				if (j < simulator.getNumGoals())
+//					simulator.setAgentGoal(j, hrvo::Vector2(tmpRobot.getGoal().x, tmpRobot.getGoal().y));
+//			}
+//			assignGoalIndex(assignmentMode);
+//		}
+//	}
+//}
 
 //--------------------------------------------------------------
 void ofApp::sendPositions()
@@ -464,20 +485,20 @@ void ofApp::assignGoalIndex(unsigned char mode) {
     else if (mode == 1) {
         // Matrix size: robotNum * robotNum
         unsigned int size = robotCollection.size();
-
+        
         vector<vector<double>> Cost(size, vector<double>(size));
         // Fill matrix with Cost values
         for(int i=0; i<size; i++)
         {
             for(int j=0; j<size; j++) // The cost is the shortest distance to be taken by each robot
             {
-				if (robotCollection[i].getTouch() == 0)
-				{
-					Cost[i][j] = pow(1000.0f*(robotCollection[i].getPosition() - ofVec2f(simulator.getGoalPosition(j).getX(), simulator.getGoalPosition(j).getY())).length(), 2.0f);
-					
-				}
-				else
-					Cost[i][j] = 1000000.0f;
+                if (robotCollection[i].getTouch() == 0)
+                {
+                    Cost[i][j] = pow(1000.0f*(robotCollection[i].getPosition() - ofVec2f(simulator.getGoalPosition(j).getX(), simulator.getGoalPosition(j).getY())).length(), 2.0f);
+                    
+                }
+                else
+                    Cost[i][j] = 1000000.0f;
             }
         }
         vector<int> assignment;
@@ -500,56 +521,56 @@ void ofApp::keyPressed(int key) {
     
     switch (key)
     {
-
+            
             
         case '?':
         case '/':
             displayHelp = true;
             break;
-
-		case '+':
-			finalOrientation = (finalOrientation>=180.0f) ? 0.0f : finalOrientation+2.0f;
-			cout << "Final Orientation: " << finalOrientation << endl;
-			for (int i = 0; i < robotCollection.size(); i++)
-				robotCollection[i].setAngle(finalOrientation);
-			break;
-
-		case '-':
-			finalOrientation = (finalOrientation<=-180.0f) ? 0.0f : finalOrientation - 2.0f;
-			cout << "Final Orientation: " << finalOrientation << endl; 
-			for (int i = 0; i < robotCollection.size(); i++)
-				robotCollection[i].setAngle(finalOrientation);
-			break;
+            
+        case '+':
+            finalOrientation = (finalOrientation>=180.0f) ? 0.0f : finalOrientation+2.0f;
+            cout << "Final Orientation: " << finalOrientation << endl;
+            for (int i = 0; i < robotCollection.size(); i++)
+                robotCollection[i].setAngle(finalOrientation);
+            break;
+            
+        case '-':
+            finalOrientation = (finalOrientation<=-180.0f) ? 0.0f : finalOrientation - 2.0f;
+            cout << "Final Orientation: " << finalOrientation << endl;
+            for (int i = 0; i < robotCollection.size(); i++)
+                robotCollection[i].setAngle(finalOrientation);
+            break;
             
         case '1':
-            robotToCommand = 1;
+            kSpeed = 0.04f;
             break;
         case '2':
-            robotToCommand = 2;
+            kSpeed = 0.4f;
             break;
         case '3':
-            robotToCommand = 3;
+            kSpeed = 0.4f;
             break;
         case '4':
-            robotToCommand = 4;
+            kSpeed = 0.4f;
             break;
         case '5':
-            robotToCommand = 5;
+            kSpeed = 0.4f;
             break;
         case '6':
-            robotToCommand = 6;
+            kSpeed = 0.4f;
             break;
         case '7':
-            robotToCommand = 7;
+            kSpeed = 0.4f;
             break;
         case '8':
-            robotToCommand = 8;
+            kSpeed = 0.4f;
             break;
         case '9':
-            robotToCommand = 9;
+            kSpeed = 0.4f;
             break;
         case '0':
-            robotToCommand = 0;
+            kSpeed = 0.04f;
             break;
             
         case OF_KEY_UP:
@@ -597,21 +618,21 @@ void ofApp::keyReleased(int key){
             displayHelp = false;
             break;
         case ' ':
-			switch (simulationMode)
-			{
-			case ON:
-				simulationMode = OFF;
-				break;
-			case OFF:
-				simulationMode = NO_PLANNING;
-				break;
-			case NO_PLANNING:
-				simulationMode = ON;
-				break;
-			default:
-				break;
-			}
-
+            switch (simulationMode)
+        {
+            case ON:
+                simulationMode = OFF;
+                break;
+            case OFF:
+                simulationMode = NO_PLANNING;
+                break;
+            case NO_PLANNING:
+                simulationMode = ON;
+                break;
+            default:
+                break;
+        }
+            
             break;
         case OF_KEY_RETURN:
             if(assignmentMode == 0)
@@ -621,22 +642,22 @@ void ofApp::keyReleased(int key){
             
             assignGoalIndex(assignmentMode);
             break;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '0':
-            robotToCommand = -1;
+            //case '1':
+            //case '2':
+            //case '3':
+            //case '4':
+            //case '5':
+            //case '6':
+            //case '7':
+            //case '8':
+            //case '9':
+            //case '0':
+            //    robotToCommand = -1;
+            //    break;
+        case OF_KEY_F12:
+            for (int i = 0; i < swarmReceivers.size(); i++)
+                swarmReceivers[i]->reset();
             break;
-		case OF_KEY_F12:
-			for (int i = 0; i < swarmReceivers.size(); i++)
-				swarmReceivers[i]->reset();
-			break;
         default:
             
             for (int i = 0; i < robotCollection.size(); i++)
@@ -652,7 +673,7 @@ void ofApp::mouseMoved(int x, int y ){
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
-
+    
     
     float mouseX = dimensionX - (float)x / ofGetWidth()*dimensionX;
     float mouseY = dimensionY - (float)y / ofGetHeight()*dimensionY;
@@ -686,10 +707,10 @@ void ofApp::mousePressed(int x, int y, int button){
     float mouseX = dimensionX - (float)x / ofGetWidth()*dimensionX;
     float mouseY = dimensionY - (float)y / ofGetHeight()*dimensionY;
     
-	if (mouseX > dimensionX) mouseX = dimensionX;
-	if (mouseX < 0.001f)     mouseX = 0.001f;
-	if (mouseY > dimensionY) mouseY = dimensionY;
-	if (mouseY < 0.001f)     mouseY = 0.001f;
+    if (mouseX > dimensionX) mouseX = dimensionX;
+    if (mouseX < 0.001f)     mouseX = 0.001f;
+    if (mouseY > dimensionY) mouseY = dimensionY;
+    if (mouseY < 0.001f)     mouseY = 0.001f;
     
     if(button == OF_MOUSE_BUTTON_1)
     {
@@ -736,7 +757,7 @@ void ofApp::mouseExited(int x, int y){
 
 //--------------------------------------------------------------
 void ofApp::windowResized(int w, int h){
-	ofSetWindowShape(w, w/1.6f);
+    ofSetWindowShape(w, w/1.6f);
 }
 
 //--------------------------------------------------------------

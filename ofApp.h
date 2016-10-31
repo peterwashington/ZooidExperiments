@@ -71,6 +71,9 @@ private:
     uint64_t previousSimulationTimestamp;
 	SimulationMode  simulationMode;
     
+    bool synchronized;
+    bool jitter;
+    
     float kSpeed;
     float prefSpeed;
     float uncertaintyOffset;
