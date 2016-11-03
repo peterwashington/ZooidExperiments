@@ -4,6 +4,8 @@ int assignmentMode = 0;
 bool displayHelp = false;
 float finalOrientation = 90.0f;
 float maxJitterOffset = 0.01f;
+int currentMotion = 1;
+
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofSetFrameRate(60);
@@ -162,15 +164,16 @@ void ofApp::draw(){
     {
         ostringstream docstring;
         docstring << "Press ? for help" << endl <<
+        "Current Motion: " << currentMotion << endl <<
         "kSpeed = " << kSpeed << endl <<
         "Optimal positioning " << ((assignmentMode==1) ? "ON" : "OFF") << endl <<
         "Framerate: " << (int)ofGetFrameRate() << endl;
         ofSetColor(158, 173, 173, 85);
         float x = 10.0f;
         float y = ofGetHeight();
-        y-= 107.0f;//-25.0f - myFont.stringHeight(docstring.str());
+        y-= 150.0f;//-25.0f - myFont.stringHeight(docstring.str());
         float w = 216;//myFont.stringWidth(docstring.str()) + 15.0f;
-        float h = 100;//myFont.stringHeight(docstring.str()) + 15.0f;
+        float h = 120;//myFont.stringHeight(docstring.str()) + 15.0f;
         ofDrawRectRounded(x, y, w, h, 5.0f);
         ofSetColor(0);
         
@@ -607,48 +610,56 @@ void ofApp::keyPressed(int key) {
 			synchronized = false;
 			isJerkHighSpeed = true;
             updateRobotsStates(highSpeed, highJerkiness, 0.f);
+            currentMotion = 1;
 			break;
         case '2':
 			// speed low, jitter, low synchrony
 			synchronized = false;
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
+            currentMotion = 2;
             break;
         case '3':
 			// speed high, no jitter, low synchrony
 			synchronized = false;
 			isJerkHighSpeed = false;
 			updateRobotsStates(highSpeed, 0, 0.f);
+            currentMotion = 3;
             break;
         case '4':
 			// speed low, no jitter, low synchrony
 			synchronized = false;
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, 0, 0.f);
+            currentMotion = 4;
             break;
         case '5':
 			// speed high, jitter, high synchrony
 			synchronized = true;
 			isJerkHighSpeed = true;
 			updateRobotsStates(highSpeed, highJerkiness, 0.f);
+            currentMotion = 5;
             break;
         case '6':
 			// speed low, jitter, high synchrony
 			synchronized = true;
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
+            currentMotion = 6;
             break;
         case '7':
 			// speed high, no jitter, high synchrony
 			synchronized = true;
 			isJerkHighSpeed = false;
 			updateRobotsStates(highSpeed, 0, 0.f);
+            currentMotion = 7;
             break;
         case '8':
 			// speed low, no jitter, high synchrony
 			synchronized = true;
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, 0, 0.f);
+            currentMotion = 8;
             break;
  
             
