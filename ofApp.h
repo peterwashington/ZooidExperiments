@@ -39,7 +39,7 @@ public:
 	 
 	void assignGoalIndex(unsigned char mode);
 
-    void updateRobotsStates(float speed, uint8_t jerkiness);
+    void updateRobotsStates(float speed, uint8_t jerkiness, float jitter);
     void keyPressed(int key);
     void keyReleased(int key);
     void mouseMoved(int x, int y );
@@ -73,7 +73,8 @@ private:
 	SimulationMode  simulationMode;
     
     bool synchronized;
-    bool jitter;
+	bool isJerkHighSpeed;
+	bool fakeGoalOn = false;
     
     float kSpeed;
     float prefSpeed;

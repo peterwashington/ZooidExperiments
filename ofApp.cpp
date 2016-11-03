@@ -15,7 +15,6 @@ void ofApp::setup(){
     simulationMode = NO_PLANNING;
     
     synchronized = false;
-    jitter = true;
     
     kSpeed = 0.1f;
     prefSpeed = kSpeed * maxSpeed;
@@ -57,7 +56,7 @@ void ofApp::setup(){
         ofVec2f initialPosition = ofVec2f(ofRandom(0.1f, dimensionX - 0.1f), ofRandom(0.1f, dimensionY - 0.1f));
         tmpAngle = ofRandom(-180.0f, 180.0f);
         
-		ofColor tmpColor = ofColor::mediumPurple;// ofColor(ofRandomf()*255.0f, ofRandomf()*255.0f, ofRandomf()*255.0f);
+		ofColor tmpColor = ofColor::green;// ofColor(ofRandomf()*255.0f, ofRandomf()*255.0f, ofRandomf()*255.0f);
         
         RobotState tmpRobot = RobotState(0, robotRadius, initialPosition, ofVec2f(0.0f, 0.0f), tmpAngle, tmpColor, 100);
         simulator.addGoal(hrvo::Vector2(finalPosition.x, finalPosition.y));
@@ -65,11 +64,8 @@ void ofApp::setup(){
         simulator.setAgentOrientation(tmpId, tmpAngle*PI/180.0f);
         tmpRobot.setId(tmpId);
 		tmpRobot.setSpeed(prefSpeed); // if speed is 0, zooid doesn't show up
-        if (jitter)
-        {
-            tmpRobot.setJerkiness((uint8_t) ofRandom(100/kSpeed, 300/kSpeed)); // jerkiness interval depends on robot speed
-            tmpRobot.setJitter(0.f);
-        }
+		tmpRobot.setJerkiness(0);// (uint8_t)ofRandom(100 / kSpeed, 300 / kSpeed)); // jerkiness interval depends on robot speed
+        tmpRobot.setJitter(0.f);
         robotCollection.push_back(tmpRobot);
         robotUpdated.push_back(true);
     }
@@ -397,36 +393,60 @@ void ofApp::controlRobotPosition(uint8_t id, float x, float y, ofColor color, fl
 
 //--------------------------------------------------------------
 void ofApp::receiveAppGoals() {
-    if (synchronized) {
-        for (int i = 0; i < robotCollection.size(); i++) {
-            RobotState r = robotCollection[i];
-			float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
-			/*float xDistance = r.getGoal().x - r.getPosition().x;
-			float yDistance = r.getGoal().y - r.getPosition().y;
-			float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
-            if (distance < robotDiameter) {
-                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
-                for (int j = 0; j < robotCollection.size(); j++) {
-                    simulator.setAgentGoal(j, vec);
-                }
-            }
-        }
-    }
-    else {
-        for (int i = 0; i < robotCollection.size(); i++) {
-            RobotState r = robotCollection[i];
+	if (synchronized) {
+		for (int i = 0; i < robotCollection.size(); i++) {
+			RobotState r = robotCollection[i];
 			float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
 			/*float xDistance = r.getGoal().x - r.getPosition().x;
 			float yDistance = r.getGoal().y - r.getPosition().y;
 			float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
 			if (distance < (robotDiameter / 2.f)) {
-				const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(robotDiameter, dimensionX - robotDiameter), ofRandom(robotDiameter, dimensionY - robotDiameter));
+				float border = robotDiameter * 4.f;
+				const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(border, dimensionX - border), ofRandom(border, dimensionY - border));
+				for (int j = 0; j < robotCollection.size(); j++) {
+					simulator.setAgentGoal(j, vec);
+				}
+			}
+		}
+	}
+	else {
+		for (int i = 0; i < robotCollection.size(); i++) {
+			RobotState r = robotCollection[i];
+			float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
+			/*float xDistance = r.getGoal().x - r.getPosition().x;
+			float yDistance = r.getGoal().y - r.getPosition().y;
+			float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
+			if (distance < (robotDiameter / 2.f)) {
+				float border = robotDiameter * 4.f;
+				const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(border, dimensionX - border), ofRandom(border, dimensionY - border));
 				for (int j = 0; j < robotCollection.size(); j++) {
 					simulator.setAgentGoal(i, vec);
 				}
-            }
-        }
-    }
+			}
+		}
+	}
+
+	uint64_t currentTimestep = ofGetElapsedTimeMillis();
+	for (int i = 0; i < robotCollection.size(); i++) {
+		/*kSpeed = robotCollection[i].getSpeed() * maxSpeed;*/
+		if (robotCollection[i].getJerkiness())
+		{
+			//if (currentTimestep % (2 * robotCollection[i].getJerkiness()) < (1 * robotCollection[i].getJerkiness())) {
+			if (currentTimestep % 2500 < 2000) {
+				kSpeed = 0.005f; // *= 0.001f;
+			}
+			else {
+				if (isJerkHighSpeed) {
+					kSpeed = 0.4f;
+				}
+				else {
+					kSpeed = 0.1f;
+				}
+			}
+			prefSpeed = kSpeed * maxSpeed;
+		}
+	}
+
     assignGoalIndex(assignmentMode);
 }
 
@@ -489,15 +509,25 @@ void ofApp::sendPositions()
 void ofApp::assignGoalIndex(unsigned char mode) {
     
     if (mode == 0) {
-        for (int k = 0; k < robotCollection.size(); k++) {
-            simulator.setAgentGoal(k, k);
-            robotCollection[k].setGoal(ofVec2f(simulator.getGoalPosition(k).getX(), simulator.getGoalPosition(k).getY()));
-        }
+		//uint64_t currentTimestep = ofGetElapsedTimeMillis();
+		for (int i = 0; i < robotCollection.size(); i++) {
+		//	if (robotCollection[i].getJerkiness()) {
+		//		simulator.setAgentGoal(i, i);
+		//		hrvo::Vector2 goalPos = simulator.getGoalPosition(i);
+		//		if (currentTimestep % 1000 < 20) {
+		//			robotCollection[i].setGoal(ofVec2f(goalPos.getX() + ofRandom(-6.0f * robotDiameter, 6.0f * robotDiameter), goalPos.getY() + ofRandom(-6.0f * robotDiameter, 6.0f * robotDiameter)));
+		//		}
+		//	}
+		//	else {
+				simulator.setAgentGoal(i, i);
+				robotCollection[i].setGoal(ofVec2f(simulator.getGoalPosition(i).getX(), simulator.getGoalPosition(i).getY()));
+		//	}
+		}
     }
     else if (mode == 1) {
         // Matrix size: robotNum * robotNum
         unsigned int size = robotCollection.size();
-        
+         
         vector<vector<double>> Cost(size, vector<double>(size));
         // Fill matrix with Cost values
         for(int i=0; i<size; i++)
@@ -529,20 +559,23 @@ void ofApp::assignGoalIndex(unsigned char mode) {
 }
 
 //--------------------------------------------------------------
-void ofApp::updateRobotsStates(float speed, uint8_t jerkiness) {
+void ofApp::updateRobotsStates(float speed, uint8_t jerkiness, float jitter) {
     for (int i = 0; i < robotCollection.size(); i++) {
         robotCollection[i].setSpeed(speed);
+		kSpeed = speed;
+		prefSpeed = kSpeed * maxSpeed;
+		uncertaintyOffset = 0.05f * prefSpeed;
         robotCollection[i].setJerkiness(jerkiness);
-        if (jitter)
-            robotCollection[i].setJitter(1.f);
-        else
-            robotCollection[i].setJitter(0.f);
+		robotCollection[i].setJitter(jitter);
     }
-    
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key) {
+
+	float lowSpeed = 0.1f;
+	float highSpeed = 0.4f;
+	float highJerkiness = 5000;
     
     switch (key)
     {
@@ -567,56 +600,57 @@ void ofApp::keyPressed(int key) {
                 robotCollection[i].setAngle(finalOrientation);
             break;
             
+		/// float speed, uint8_t jerkiness, float jitter
+
         case '1':
-			synchronized = true;
-			jitter = true;
-            updateRobotsStates(0.04f, 0);
-            break;
+			// speed high, jitter, low synchrony
+			synchronized = false;
+			isJerkHighSpeed = true;
+            updateRobotsStates(highSpeed, highJerkiness, 0.f);
+			break;
         case '2':
-            kSpeed = 0.4f;
-			synchronized = true;
-			jitter = true;
+			// speed low, jitter, low synchrony
+			synchronized = false;
+			isJerkHighSpeed = false;
+			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
             break;
         case '3':
-            kSpeed = 0.4f;
-			synchronized = true;
-			jitter = true;
+			// speed high, no jitter, low synchrony
+			synchronized = false;
+			isJerkHighSpeed = false;
+			updateRobotsStates(highSpeed, 0, 0.f);
             break;
         case '4':
-            kSpeed = 0.4f;
-			synchronized = true;
-			jitter = true;
+			// speed low, no jitter, low synchrony
+			synchronized = false;
+			isJerkHighSpeed = false;
+			updateRobotsStates(lowSpeed, 0, 0.f);
             break;
         case '5':
-            kSpeed = 0.4f;
+			// speed high, jitter, high synchrony
 			synchronized = true;
-			jitter = true;
+			isJerkHighSpeed = true;
+			updateRobotsStates(highSpeed, highJerkiness, 0.f);
             break;
         case '6':
-            kSpeed = 0.4f;
+			// speed low, jitter, high synchrony
 			synchronized = true;
-			jitter = true;
+			isJerkHighSpeed = false;
+			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
             break;
         case '7':
-            kSpeed = 0.4f;
+			// speed high, no jitter, high synchrony
 			synchronized = true;
-			jitter = true;
+			isJerkHighSpeed = false;
+			updateRobotsStates(highSpeed, 0, 0.f);
             break;
         case '8':
-            kSpeed = 0.4f;
+			// speed low, no jitter, high synchrony
 			synchronized = true;
-			jitter = true;
+			isJerkHighSpeed = false;
+			updateRobotsStates(lowSpeed, 0, 0.f);
             break;
-        case '9':
-            kSpeed = 0.4f;
-			synchronized = true;
-			jitter = true;
-            break;
-        case '0':
-            kSpeed = 0.04f;
-			synchronized = true;
-			jitter = true;
-            break;
+ 
             
         case OF_KEY_UP:
             kSpeed+=0.005f;
