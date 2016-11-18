@@ -34,6 +34,7 @@ public:
 	void controlRobotSpeed(int id, int8_t motor1, int8_t motor2, ofColor color);
 	void controlRobotPosition(uint8_t id, float x, float y, ofColor color, float orientation, float preferredSpeed, bool isFinalGoal);
 
+    void updateAppGoals();
 	void receiveAppGoals();
 	void sendPositions();
 	 

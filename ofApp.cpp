@@ -395,6 +395,42 @@ void ofApp::controlRobotPosition(uint8_t id, float x, float y, ofColor color, fl
 }
 
 //--------------------------------------------------------------
+
+void ofApp::updateAppGoals() {
+    if (synchronized) {
+        for (int i = 0; i < robotCollection.size(); i++) {
+            RobotState r = robotCollection[i];
+            float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
+            /*float xDistance = r.getGoal().x - r.getPosition().x;
+             float yDistance = r.getGoal().y - r.getPosition().y;
+             float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
+
+                float border = robotDiameter * 4.f;
+                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(border, dimensionX - border), ofRandom(border, dimensionY - border));
+                for (int j = 0; j < robotCollection.size(); j++) {
+                    simulator.setAgentGoal(j, vec);
+                }
+
+        }
+    }
+    else {
+        for (int i = 0; i < robotCollection.size(); i++) {
+            RobotState r = robotCollection[i];
+            float distance = (robotCollection[i].getGoal() - r.getPosition()).length();
+            /*float xDistance = r.getGoal().x - r.getPosition().x;
+             float yDistance = r.getGoal().y - r.getPosition().y;
+             float distance = sqrtf((xDistance * xDistance) + (yDistance * yDistance));*/
+
+                float border = robotDiameter * 4.f;
+                const hrvo::Vector2 vec = *new hrvo::Vector2(ofRandom(border, dimensionX - border), ofRandom(border, dimensionY - border));
+                for (int j = 0; j < robotCollection.size(); j++) {
+                    simulator.setAgentGoal(i, vec);
+                }
+
+        }
+    }
+}
+
 void ofApp::receiveAppGoals() {
 	if (synchronized) {
 		for (int i = 0; i < robotCollection.size(); i++) {
@@ -608,6 +644,7 @@ void ofApp::keyPressed(int key) {
         case '1':
 			// speed high, jitter, low synchrony
 			synchronized = false;
+            updateAppGoals();
 			isJerkHighSpeed = true;
             updateRobotsStates(highSpeed, highJerkiness, 0.f);
             currentMotion = 1;
@@ -615,6 +652,7 @@ void ofApp::keyPressed(int key) {
         case '2':
 			// speed low, jitter, low synchrony
 			synchronized = false;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
             currentMotion = 2;
@@ -622,6 +660,7 @@ void ofApp::keyPressed(int key) {
         case '3':
 			// speed high, no jitter, low synchrony
 			synchronized = false;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(highSpeed, 0, 0.f);
             currentMotion = 3;
@@ -629,6 +668,7 @@ void ofApp::keyPressed(int key) {
         case '4':
 			// speed low, no jitter, low synchrony
 			synchronized = false;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, 0, 0.f);
             currentMotion = 4;
@@ -636,6 +676,7 @@ void ofApp::keyPressed(int key) {
         case '5':
 			// speed high, jitter, high synchrony
 			synchronized = true;
+            updateAppGoals();
 			isJerkHighSpeed = true;
 			updateRobotsStates(highSpeed, highJerkiness, 0.f);
             currentMotion = 5;
@@ -643,6 +684,7 @@ void ofApp::keyPressed(int key) {
         case '6':
 			// speed low, jitter, high synchrony
 			synchronized = true;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, highJerkiness, 0.f);
             currentMotion = 6;
@@ -650,6 +692,7 @@ void ofApp::keyPressed(int key) {
         case '7':
 			// speed high, no jitter, high synchrony
 			synchronized = true;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(highSpeed, 0, 0.f);
             currentMotion = 7;
@@ -657,6 +700,7 @@ void ofApp::keyPressed(int key) {
         case '8':
 			// speed low, no jitter, high synchrony
 			synchronized = true;
+            updateAppGoals();
 			isJerkHighSpeed = false;
 			updateRobotsStates(lowSpeed, 0, 0.f);
             currentMotion = 8;
